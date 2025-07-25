@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Resept Kitabı</title>
+<style>
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0; padding: 0;
+    background-color: lch(99.65% 0.01 296.81 / 0.842);
+    color: #000;
+  }
+  .container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    
+  }
+  form input, form textarea {
+    width: 80%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    display: block;
+    background-color: #fff;
+    color: #000;
+    transition:border-color 0.5s ease;
+  }
+  input, textarea:focus {
+    outline: none;
+    border-color: #32a852;
+  }
+  button {
+    padding: 10px 20px;
+    background-color: #32a852;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    margin: 10px 5px 10px 0;
+    transition: background-color 0.3s ease, opacity 0.3s ease, transform 0.1s ease;
+  }
+  button:hover {
+    background-color: #23f746;
+    opacity: 0.9;
+  }
+  button:active {
+    transform: scale(0.95);
+  }
+  .recipe {
+    background: #ffffff;
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: background-color 0.5s ease, color 0.5s ease, box-shadow 0.5s ease, transform 0.3s ease, max-height 0.4s ease;
+    overflow: hidden;
+    max-height: 120px;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  .recipe.expanded {
+    max-height: 1000px;
+  }
+  .recipe:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  }
+  .recipe h3 {
+    margin: 0 0 8px 0;
+    font-size: 22px;
+    color: #333;
+    user-select: none;
+  }
+  .recipe p.details {
+    margin: 5px 0;
+  }
+  .delete-btn {
+    background-color: #d9534f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 6px 12px;
+    margin-right: 10px;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+  }
+  .fav-btn {
+    background-color: #ffc107;
+    color: black;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 6px 12px;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+  }
+  .fav-btn:hover {
+    background-color: #e0a800;
+  }
+  .fav-btn.pulsing {
+    animation: pulse 0.5s ease;
+  }
+  .highlight {
+    box-shadow: 0 0 12px 3px #32a852;
+    transition: box-shadow 0.3s ease;
+  }
+  .dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+  }
+  .dark-mode .container {
+    background-color: #1e1e1e;
+    color: #fff;
+  }
+  .dark-mode input,
+  .dark-mode textarea {
+    background-color: #2c2c2c;
+    color: #fff;
+    border-color: #444;
+  }
+  .dark-mode input:focus,
+  .dark-mode textarea:focus {
+    border-color: #32a852;
+  }
+  .dark-mode .recipe {
+    background-color: #2a2a2a;
+    color: #fff;
+    border-color: #444;
+    box-shadow: 0 4px 12px rgba(255 255 255 / 0.1);
+  }
+  .dark-mode h3{
+    color: white;
+  }
+  .dark-mode .recipe:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(255 255 255 / 0.25);
+  }
+  .dark-mode .delete-btn {
+    background-color: #d9534f;
+    color: white;
+  }
+  .dark-mode .fav-btn {
+    background-color: #ffc107;
+    color: black;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📖 Resept Kitabı</h1>
+  <form id="Recipeform">
+    <input type="text" id="title" placeholder="Resept adı" required />
+    <textarea id="ingredients" placeholder="Tərkib" required></textarea>
+    <textarea id="instructions" placeholder="Hazırlanma qaydası" required></textarea>
+    <input type="text" id="searchInput" placeholder="🔍 Resept axtar..." />
+    <button type="submit">Əlavə et</button>
+    <button id="theme" type="button">🌙 Tema dəyiş</button>
+    <button id="showFavorites" type="button">💖 Sevimliləri göstər</button>
+    <button id="showAll" type="button" style="display:none;">📖 Bütün reseptləri göstər</button>
+  </form>
+  <h2>Əlavə olunmuş reseptlər</h2>
+  <div id="recipeList"></div>
+</div>
+
+<script>
+  const form = document.getElementById("Recipeform");
+  const recipeList = document.getElementById("recipeList");
+  const themeBtn = document.getElementById("theme");
+  const searchInput = document.getElementById("searchInput");
+  const showFavBtn = document.getElementById("showFavorites");
+  const showAllBtn = document.getElementById("showAll");
+
+  
+  function getRECIPESFROMLOCALSTORAGE() {
+    return JSON.parse(localStorage.getItem("recipes")) || [];
+  }
+  function saveRecipeToLOCALSTORAGE(recipe) {
+    const recipes = getRECIPESFROMLOCALSTORAGE();
+    recipes.push(recipe);
+    localStorage.setItem("recipes", JSON.stringify(recipes));
+  }
+  function deleteRECIPEFROMLOCALSTORAGE(id) {
+    let recipes = getRECIPESFROMLOCALSTORAGE();
+    recipes = recipes.filter(recipe => recipe.id !== id);
+    localStorage.setItem("recipes", JSON.stringify(recipes));
+  }
+  function getFAVORITESFROMLOCALSTORAGE() {
+    return JSON.parse(localStorage.getItem("favourites")) || [];
+  }
+  function saveFavoritesToLOCALSTORAGE(favorites) {
+    localStorage.setItem("favourites", JSON.stringify(favorites));
+  }
+  function clearRecipeList() {
+    recipeList.innerHTML = '';
+  }
+
+ 
+  function addRecipeTODOM(recipe) {
+    const recipeDiv = document.createElement("div");
+    recipeDiv.classList.add("recipe");
+    recipeDiv.setAttribute("data-id", recipe.id);
+
+    recipeDiv.innerHTML = `
+      <h3>${recipe.title}</h3>
+      <p class="details"><strong>Tərkibi:</strong> ${recipe.ingredients}</p>
+      <p class="details"><strong>Hazırlanma:</strong> ${recipe.instructions}</p>
+      <p style="font-size: 13px; color: gray;">
+          🕒 Əlavə olundu: ${recipe.createdAt ? new Date(recipe.createdAt).toLocaleString() : "Tarixsiz"}
+      </p>
+      <button class="delete-btn">Sil</button>
+      <button class="fav-btn">❤️ Sevimli</button>
+    `;
+
+  
+    const title = recipeDiv.querySelector("h3");
+    const details = recipeDiv.querySelectorAll(".details, p[style]");
+    details.forEach(d => d.style.display = "none");
+    title.style.userSelect = "none";
+    title.style.cursor = "pointer";
+    title.addEventListener("click", () => {
+      recipeDiv.classList.toggle("expanded");
+      if (recipeDiv.classList.contains("expanded")) {
+        details.forEach(d => d.style.display = "block");
+        recipeDiv.style.maxHeight = "1000px";
+      } else {
+        details.forEach(d => d.style.display = "none");
+        recipeDiv.style.maxHeight = "120px";
+      }
+    });
+
+    recipeList.appendChild(recipeDiv);
+  }
+
+ 
+  function loadRecipes() {
+    clearRecipeList();
+    const recipes = getRECIPESFROMLOCALSTORAGE();
+    recipes.forEach((recipe, index) => {
+      addRecipeTODOM(recipe);
+      const recipeDiv = recipeList.lastChild;
+      recipeDiv.style.opacity = 0;
+      recipeDiv.style.transform = "translateY(20px)";
+      recipeDiv.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+      setTimeout(() => {
+        recipeDiv.style.opacity = 1;
+        recipeDiv.style.transform = "translateY(0)";
+      }, index * 150);
+    });
+  }
+
+  
+  document.addEventListener("DOMContentLoaded", () => {
+    loadRecipes();
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
+  });
+
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const title = document.getElementById("title").value.trim();
+    const ingredients = document.getElementById("ingredients").value.trim();
+    const instructions = document.getElementById("instructions").value.trim();
+    if (!title || !ingredients || !instructions) return;
+    const recipe = {
+      id: Date.now().toString(),
+      title,
+      ingredients,
+      instructions,
+      createdAt: new Date().toISOString()
+    };
+    saveRecipeToLOCALSTORAGE(recipe);
+    addRecipeTODOM(recipe);
+    const recipeDiv = recipeList.lastChild;
+    recipeDiv.style.opacity = 0;
+    recipeDiv.style.transform = "translateY(20px)";
+    recipeDiv.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+    setTimeout(() => {
+      recipeDiv.style.opacity = 1;
+      recipeDiv.style.transform = "translateY(0)";
+    }, 10);
+    form.reset();
+  });
+
+
+  themeBtn.addEventListener("click", () => {
+    document.body.classList.toggle("dark-mode");
+    if (document.body.classList.contains("dark-mode")) {
+      localStorage.setItem("theme", "dark");
+    } else {
+      localStorage.setItem("theme", "light");
+    }
+  });
+
+ 
+  showFavBtn.addEventListener("click", () => {
+    clearRecipeList();
+    const favorites = getFAVORITESFROMLOCALSTORAGE();
+    if (favorites.length === 0) {
+      recipeList.innerHTML = "<h2>💖 Sevimli Reseptlər</h2><p>Sevimli resept yoxdur.</p>";
+    } else {
+      recipeList.innerHTML = "<h2>💖 Sevimli Reseptlər</h2>";
+      favorites.forEach(addRecipeTODOM);
+      const cards = recipeList.querySelectorAll(".recipe");
+      cards.forEach((card, i) => {
+        card.style.opacity = 0;
+        card.style.transform = "translateY(20px)";
+        card.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+        setTimeout(() => {
+          card.style.opacity = 1;
+          card.style.transform = "translateY(0)";
+        }, i * 150);
+      });
+    }
+    showAllBtn.style.display = "inline-block";
+    showFavBtn.style.display = "none";
+    searchInput.style.display = "none";
+  });
+
+  showAllBtn.addEventListener("click", () => {
+    loadRecipes();
+    showAllBtn.style.display = "none";
+    showFavBtn.style.display = "inline-block";
+    searchInput.style.display = "block";
+  });
+
+
+  recipeList.addEventListener("click", e => {
+    const target = e.target;
+    const recipeDiv = target.closest(".recipe");
+    if (!recipeDiv) return;
+    const id = recipeDiv.getAttribute("data-id");
+
+    if (target.classList.contains("delete-btn")) {
+      deleteRECIPEFROMLOCALSTORAGE(id);
+      // Sevimlilərdən də sil
+      let favourites = getFAVORITESFROMLOCALSTORAGE();
+      favourites = favourites.filter(fav => fav.id !== id);
+      saveFavoritesToLOCALSTORAGE(favourites);
+      recipeDiv.remove();
+    }
+
+    if (target.classList.contains("fav-btn")) {
+      const recipes = getRECIPESFROMLOCALSTORAGE();
+      const recipe = recipes.find(r => r.id === id);
+      if (!recipe) return;
+      let favourites = getFAVORITESFROMLOCALSTORAGE();
+      const exists = favourites.find(fav => fav.id === id);
+      if (!exists) {
+        favourites.push(recipe);
+        saveFavoritesToLOCALSTORAGE(favourites);
+        target.classList.add("pulsing");
+        setTimeout(() => target.classList.remove("pulsing"), 500);
+        alert("❤️ Sevimlilərə əlavə olundu!");
+        
+        showFavBtn.click();
+      } else {
+       
+        favourites = favourites.filter(fav => fav.id !== id);
+        saveFavoritesToLOCALSTORAGE(favourites);
+        alert("❤️ Sevimli siyahısından silindi!");
+        if (showAllBtn.style.display === "inline-block") {
+          showFavBtn.click();
+        }
+      }
+    }
+  });
+
+  
+  searchInput.addEventListener("input", e => {
+    const term = e.target.value.toLowerCase();
+    const recipes = document.querySelectorAll(".recipe");
+    recipes.forEach(recipe => {
+      const title = recipe.querySelector("h3").textContent.toLowerCase();
+      const ingredients = recipe.querySelector("p.details").textContent.toLowerCase();
+      const details = recipe.querySelectorAll(".details, p[style]");
+      if (title.includes(term) || ingredients.includes(term)) {
+        recipe.style.display = "block";
+        recipe.classList.remove("expanded");
+        details.forEach(d => d.style.display = "none");
+      } else {
+        recipe.style.display = "none";
+        recipe.classList.remove("expanded");
+        details.forEach(d => d.style.display = "none");
+      }
+    });
+  });
+</script>
+</body>
+</html>
